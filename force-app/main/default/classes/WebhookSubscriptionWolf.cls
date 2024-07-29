@@ -17,23 +17,34 @@ global with sharing class WebhookSubscriptionWolf {
             Blob requestBody = request.requestBody;
 
             RestResponse response = RestContext.response;
-
+            String hashedval = request.headers.get('X-Hub-Signature-256');
+            Blob hmac = Crypto.generateMac('hmacSHA256',requestBody, Blob.valueOf('webhookwolf'));
+            String hmacstring = 'sha256='+EncodingUtil.convertToHex(hmac);
             String requestJSON = requestBody.toString();
             PushRequest requestParsed = (PushRequest) JSON.deserialize(requestJSON, PushRequest.class);
 
-            insert new Github_Webhook_Result__c(
-                Name = 'Test '+String.valueOf(Datetime.now()),
-                Pusher_Name__c = requestParsed.pusher.name,
-                Pusher_Email__c = requestParsed.pusher.email,
-                Commit_ID__c = requestParsed.commits[0].id,
-                Commit_Message__c = requestParsed.commits[0].message
-            );
+            if(hashedval == hmacstring){
 
+                insert new Github_Webhook_Result__c(
+                    Name = 'Test '+String.valueOf(Datetime.now()),
+                    Pusher_Name__c = requestParsed.pusher.name,
+                    Pusher_Email__c = requestParsed.pusher.email,
+                    Commit_ID__c = requestParsed.commits[0].id,
+                    Commit_Message__c = requestParsed.commits[0].message
+                );
+            }else{
+                insert new Magic_Pineapple__Pineapple_Log__c(
+                    Magic_Pineapple__Log_Message__c = hashedval + ' != ' + hmacstring,
+                    Magic_Pineapple__Location__c = 'WebhookSubscriptionWolf.cls',
+                    Magic_Pineapple__User_Id__c = UserInfo.getUserId()
+                );
+            }
             insert new Magic_Pineapple__Pineapple_Log__c(
                 Magic_Pineapple__Log_Message__c = requestBody.toString().left(32768),
                 Magic_Pineapple__Location__c = 'WebhookSubscriptionWolf.cls',
                 Magic_Pineapple__User_Id__c = UserInfo.getUserId()
             );
+            
             
         }catch(Exception e){
             system.debug('Exception occured: '+ e.getMessage());
