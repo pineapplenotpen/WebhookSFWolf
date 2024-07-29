@@ -15,14 +15,48 @@ global with sharing class WebhookSubscriptionWolf {
             RestRequest request = RestContext.request;
 
             Blob requestBody = request.requestBody;
-            system.debug(requestBody);
-            system.debug(String.valueOf(requestBody));
 
             RestResponse response = RestContext.response;
-            system.debug(response.responseBody);
-            system.debug(String.valueOf(response.responseBody));
+
+            String requestJSON = requestBody.toString();
+            PushRequest requestParsed = (PushRequest) JSON.deserialize(requestJSON, PushRequest.class);
+
+            insert new Github_Webhook_Result__c(
+                Name = 'Test '+String.valueOf(Datetime.now()),
+                Pusher_Name__c = requestParsed.pusher.name,
+                Pusher_Email__c = requestParsed.pusher.email,
+                Commit_ID__c = requestParsed.commits[0].id,
+                Commit_Message__c = requestParsed.commits[0].message
+            );
+
+            insert new Magic_Pineapple__Pineapple_Log__c(
+                Magic_Pineapple__Log_Message__c = requestBody.toString().left(32768),
+                Magic_Pineapple__Location__c = 'WebhookSubscriptionWolf.cls',
+                Magic_Pineapple__User_Id__c = UserInfo.getUserId()
+            );
+            
         }catch(Exception e){
             system.debug('Exception occured: '+ e.getMessage());
+            insert new Magic_Pineapple__Pineapple_Log__c(
+                Magic_Pineapple__Log_Message__c = 'ERR: '+e.getMessage(),
+                Magic_Pineapple__Location__c = 'WebhookSubscriptionWolf.cls',
+                Magic_Pineapple__User_Id__c = UserInfo.getUserId()
+            );
         }
+    }
+
+    global class PushRequest{
+        global pusher pusher{get;set;}
+        global commits[] commits {get;set;}
+    }
+
+    global class pusher{
+        global String name {get;set;}
+        global String email {get;set;}
+    }
+
+    global class commits{
+        global String id {get;set;}
+        global String message {get;set;}
     }
 }
